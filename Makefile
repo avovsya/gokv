@@ -8,3 +8,6 @@ start:
 
 build:
 	$(GO) build
+
+test:
+	go test ./...
