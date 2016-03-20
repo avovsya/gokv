@@ -1,0 +1,4 @@
+* TODO Connection pool 
+* TODO PUT
+* TODO GET
+* TODO DELETE
