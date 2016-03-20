@@ -8,11 +8,12 @@ import (
 )
 
 func handleConnection(conn net.Conn) {
-	var err error
+	var status session.Status
+
 	defer conn.Close()
 	defer func() {
-		// Closure to capture 'err' variable
-		log.Printf("Connection closed: %s. Error: %v", conn.RemoteAddr(), err)
+		// Closure to capture 'status' variable
+		log.Printf("Connection closed: %s. Status: %v.", conn.RemoteAddr(), status)
 	}()
 
 	reader := bufio.NewReader(conn)
@@ -22,8 +23,7 @@ func handleConnection(conn net.Conn) {
 
 	session := session.NewSession(conn.RemoteAddr().String(), reader, writer)
 
-	session.Ready()
-	err = session.Talk()
+	status = session.Talk()
 }
 
 func main() {

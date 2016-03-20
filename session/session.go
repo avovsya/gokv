@@ -2,7 +2,6 @@ package session
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -27,22 +26,50 @@ func NewSession(addr string, r *bufio.Reader, w *bufio.Writer) Session {
 	}
 }
 
-func (s Session) Talk() error {
+func (s Session) Talk() Status {
+	s.Ready()
 	go s.readCmd()
 
 	for {
 		select {
-		case <-time.After(10 * time.Second): //TODO: configurable timeout
-			return errors.New("Timeout")
-		case cmdError := <-s.err:
-			return cmdError
+		case <-time.After(5 * time.Second): //TODO: configurable timeout
+			return Code("CLOSED", "SERVER_TIMEOUT", "Session closed after timeout")
+		case err := <-s.err:
+			return Error(err)
 		case cmd := <-s.cmd:
-			cmdError := s.processCmd(cmd)
-			if cmdError != nil {
-				return cmdError
+			status := s.processCmd(cmd)
+			if status.code == "ERROR" ||
+				status.code == "CLOSED" {
+				return status
 			}
 		}
 	}
+}
+
+func (s Session) processCmd(cmd []string) Status {
+	var cmdError error
+
+	log.Printf("Command '%v' received from %s", cmd[0], s.addr)
+
+	switch {
+	case cmd[0] == "CLOSE":
+		return Code("CLOSED", "CLIENT", "Session closed by client")
+	case cmd[0] == "PING":
+		cmdError = s.Pong()
+	case cmd[0] == "GET":
+		cmdError = s.Get(cmd[1:])
+	case cmd[0] == "PUT":
+		cmdError = s.Put(cmd[1:])
+	case cmd[0] == "DELETE":
+		cmdError = s.Delete(cmd[1:])
+	default:
+		cmdError = s.Unknown(strings.Join(cmd, " "))
+	}
+	if cmdError != nil {
+		return Error(cmdError)
+	}
+	// TODO try to notify client about the error
+	return Ok()
 }
 
 func (s Session) readCmd() {
@@ -63,28 +90,6 @@ func (s Session) readCmd() {
 
 		s.cmd <- cmd
 	}
-}
-
-func (s Session) processCmd(cmd []string) error {
-	var cmdError error
-
-	log.Printf("Command '%v' received from %s", cmd[0], s.addr)
-
-	switch {
-	case cmd[0] == "CLOSE":
-		return errors.New("Closed by client")
-	case cmd[0] == "PING":
-		cmdError = s.Pong()
-	case cmd[0] == "GET":
-		cmdError = s.Get(cmd[1:])
-	case cmd[0] == "PUT":
-		cmdError = s.Put(cmd[1:])
-	case cmd[0] == "DELETE":
-		cmdError = s.Delete(cmd[1:])
-	default:
-		cmdError = s.Unknown(strings.Join(cmd, " "))
-	}
-	return cmdError
 }
 
 func write(msg string, w *bufio.Writer) error {

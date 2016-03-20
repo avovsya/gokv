@@ -1,4 +1,6 @@
+* TODO Tests and Benchmarks
 * TODO Connection pool 
-* TODO PUT
-* TODO GET
-* TODO DELETE
+  Use sync.Pool ?
+* DONE PUT
+* DONE GET
+* DONE DELETE

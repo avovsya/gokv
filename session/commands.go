@@ -1,7 +1,9 @@
 package session
 
 import (
+	"errors"
 	"fmt"
+	"github.com/avovsya/gokv/store"
 )
 
 func (s Session) Ready() error {
@@ -21,27 +23,51 @@ func (s Session) Pong() error {
 }
 
 func (s Session) Get(args []string) error {
-	err := write("PUT", s.writer)
-	if err != nil {
-		return err
+	var err error
+	if len(args) != 1 {
+		return errors.New("GET command has exactly one arg: GET <key>")
 	}
-	return nil
+
+	if value, err := store.Get(args[0]); err == nil {
+		err = write(fmt.Sprintf("OK %s", value), s.writer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (s Session) Put(args []string) error {
-	err := write("PUT", s.writer)
-	if err != nil {
-		return err
+	var err error
+	if len(args) != 2 {
+		return errors.New("PUT command has exactly two args: PUT <key> <value>")
 	}
-	return nil
+
+	if err := store.Put(args[0], args[1]); err == nil {
+		err = write("OK", s.writer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (s Session) Delete(args []string) error {
-	err := write("DELETE", s.writer)
-	if err != nil {
-		return err
+	var err error
+	if len(args) != 1 {
+		return errors.New("DELETE command has exactly one arg: DELETE <key>")
 	}
-	return nil
+
+	if err := store.Delete(args[0]); err == nil {
+		err = write("OK", s.writer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (s Session) Unknown(resp string) error {
